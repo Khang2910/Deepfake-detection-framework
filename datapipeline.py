@@ -3,7 +3,7 @@ import os
 
 # ==== Configuration Parameters ====
 GCS_BUCKET = 'gs://deepfake-detection'
-TFRECORD_PATH = f'{GCS_BUCKET}/data/train_records/*.tfrecord'  # or replace with parquet pipeline
+TFRECORD_PATH = f'{GCS_BUCKET}/*.tfrecord'  # or replace with parquet pipeline
 VIDEO_SIZE = (224, 224)
 BATCH_SIZE = 8
 NUM_EPOCHS = 10
