@@ -44,9 +44,9 @@ def train_model(model_name, use_tpu, model_kwargs):
                       metrics=['accuracy'])
 
     print(f"Loading dataset for {model_name}...")
-    train_dataset = load_dataset(TFRECORD_PATH, BATCH_SIZE, is_training=True)
-    val_dataset = load_dataset(TFRECORD_PATH, BATCH_SIZE, is_training=False)
-
+    train_dataset = get_train_dataset()
+    val_dataset = get_test_dataset()
+    
     print(f"Training model {model_name}...")
     start = time.time()
     model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=100)
