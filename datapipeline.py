@@ -2,7 +2,7 @@ import tensorflow as tf
 import os
 
 # ==== Configuration Parameters ====
-GCS_BUCKET = 'gs://your-bucket-name'
+GCS_BUCKET = 'gs://deepfake-detection'
 TFRECORD_PATH = f'{GCS_BUCKET}/data/train_records/*.tfrecord'  # or replace with parquet pipeline
 VIDEO_SIZE = (224, 224)
 BATCH_SIZE = 8
