@@ -19,7 +19,7 @@ def log(msg, sep=False):
 
 def get_strategy():
     try:
-        tpu = tf.distribute.cluster_resolver.TPUClusterResolver()
+        tpu = tf.distribute.cluster_resolver.TPUClusterResolver('local')
         tf.config.experimental_connect_to_cluster(tpu)
         tf.tpu.experimental.initialize_tpu_system(tpu)
         log("Using TPU")
@@ -61,8 +61,8 @@ def train_model(model_name, use_tpu, model_kwargs):
                       metrics=['accuracy'])
 
     log(f"Preparing dataset for {model_name}...", sep=True)
-    train_dataset = get_train_dataset()
-    val_dataset = get_test_dataset()
+    train_dataset = get_train_dataset(folder=args.tfrecord_dir)
+    val_dataset = get_test_dataset(folder=args.tfrecord_dir)
 
     log(f"Training model: {model_name}")
     start_time = time.time()
@@ -109,5 +109,8 @@ if __name__ == "__main__":
     parser.add_argument("--num_classes", type=int, help="Number of output classes.")
     parser.add_argument("--alpha", type=int, help="Temporal stride between fast/slow.")
     parser.add_argument("--tau", type=int, help="Number of frames for fast path.")
+    parser.add_argument("--tfrecord_dir", type=str,
+        default="gs://deepfake-detection", help="Path to folder containing TFRecords")
+
     args = parser.parse_args()
     main(args)
