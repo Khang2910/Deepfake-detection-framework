@@ -46,9 +46,6 @@ def print_model_config(name, kwargs):
 def train_model(model_name, use_tpu, model_kwargs):
     if model_name not in MODEL_REGISTRY:
         raise ValueError(f"Unknown model: {model_name}. Available: {list(MODEL_REGISTRY.keys())}")
-    
-    if use_tpu:
-        reset_tpu()
 
     strategy, _ = get_strategy()
 
@@ -92,10 +89,16 @@ def parse_model_kwargs(args):
 
 def main(args):
     os.makedirs(os.path.dirname(OUTPUT_EVAL_FILE) or ".", exist_ok=True)
+    print('=' * 60)
+    print('GET STRATEGY')
     _, is_tpu = get_strategy()  # just to check what's available
+    print('=' * 60)
+    print('GOT STRATEGY')
 
     model_kwargs = parse_model_kwargs(args)
 
+    print('=' * 60)
+    print('TRAINING MODEL')
     for model_name in args.models:
         try:
             train_model(model_name, use_tpu=is_tpu, model_kwargs=model_kwargs)
