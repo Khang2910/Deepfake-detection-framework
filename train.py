@@ -48,7 +48,7 @@ def train_model(model_name, use_tpu, model_kwargs):
         raise ValueError(f"Unknown model: {model_name}. Available: {list(MODEL_REGISTRY.keys())}")
 
     strategy, _ = get_strategy()
-
+    print('GETTING MODEL')
     with strategy.scope():
         model_class = MODEL_REGISTRY[model_name]
         print_model_config(model_name, model_kwargs)
@@ -56,7 +56,6 @@ def train_model(model_name, use_tpu, model_kwargs):
         model.compile(optimizer='adam',
                       loss='sparse_categorical_crossentropy',
                       metrics=['accuracy'])
-
     log(f"Preparing dataset for {model_name}...", sep=True)
     train_dataset = get_train_dataset(folder=args.tfrecord_dir)
     val_dataset = get_test_dataset(folder=args.tfrecord_dir)
@@ -89,11 +88,6 @@ def parse_model_kwargs(args):
 
 def main(args):
     os.makedirs(os.path.dirname(OUTPUT_EVAL_FILE) or ".", exist_ok=True)
-    print('=' * 60)
-    print('GET STRATEGY')
-    _, is_tpu = get_strategy()  # just to check what's available
-    print('=' * 60)
-    print('GOT STRATEGY')
 
     model_kwargs = parse_model_kwargs(args)
 
