@@ -95,7 +95,7 @@ def main(args):
     print('TRAINING MODEL')
     for model_name in args.models:
         try:
-            train_model(model_name, use_tpu=is_tpu, model_kwargs=model_kwargs)
+            train_model(model_name, use_tpu=True, model_kwargs=model_kwargs)
         except Exception as e:
             log(f"Exception occurred during training model {model_name}: {e}", sep=True)
 
