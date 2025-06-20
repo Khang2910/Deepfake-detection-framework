@@ -29,10 +29,36 @@ def _parse_tfrecord(example_proto):
     }
     example = tf.io.parse_single_example(example_proto, feature_description)
     video = tf.io.decode_raw(example['video'], tf.uint8)
-    video = tf.reshape(video, [FRAME_COUNT, *VIDEO_SIZE, 3])
+
+    # Assume shape: [T, H, W, 3] is flattened
+    # Try to infer actual number of frames
+    raw_size = tf.size(video)
+    single_frame_size = 224 * 224 * 3
+    total_frames = raw_size // single_frame_size
+
+    video = tf.reshape(video, [total_frames, 224, 224, 3])
     video = tf.cast(video, tf.float32) / 255.0
+
+    video = temporal_resize(video, target_frames=32)
+
     label = tf.cast(example['label'], tf.int32)
     return video, label
+
+def temporal_resize(video, target_frames):
+    """Uniformly sample or pad video to target number of frames."""
+    num_frames = tf.shape(video)[0]
+
+    def sample():
+        indices = tf.linspace(0.0, tf.cast(num_frames - 1, tf.float32), target_frames)
+        indices = tf.cast(indices, tf.int32)
+        return tf.gather(video, indices)
+
+    def pad():
+        pad_len = target_frames - num_frames
+        padding = tf.tile(video[-1:], [pad_len, 1, 1, 1])  # repeat last frame
+        return tf.concat([video, padding], axis=0)
+
+    return tf.cond(num_frames >= target_frames, sample, pad)
 
 # ==== Dataset Loader ====
 def load_dataset(file_list, batch_size, is_training=True):
