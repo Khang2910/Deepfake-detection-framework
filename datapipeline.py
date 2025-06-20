@@ -1,15 +1,25 @@
 import tensorflow as tf
 import os
 
-# ==== Configuration ====
-BUCKET_PATH = 'gs://deepfake-detection'
-TRAIN_PATTERN = os.path.join(BUCKET_PATH, 'dfdc_*_train.tfrecord')
-TEST_PATTERN  = os.path.join(BUCKET_PATH, 'dfdc_*_test.tfrecord')
+# ==== Config ====
 VIDEO_SIZE = (224, 224)
 FRAME_COUNT = 32
 BATCH_SIZE = 8
 NUM_EPOCHS = 10
 AUTO = tf.data.AUTOTUNE
+
+# ==== Global Path Variable (can be changed dynamically) ====
+TFRECORD_DIR = "gs://deepfake-detection"  # or "./data" for local
+
+def get_tfrecord_files(folder, split):
+    """Return list of .tfrecord files in folder for train/test split"""
+    pattern = f"dfdc_*_{split}.tfrecord"
+    full_pattern = tf.io.gfile.join(folder, pattern)
+    files = tf.io.gfile.glob(full_pattern)
+    if not files:
+        raise FileNotFoundError(f"No TFRecord files found for split={split} in {folder}")
+    print(f"[INFO] Found {len(files)} files for {split} in {folder}")
+    return files
 
 # ==== TFRecord Parsing ====
 def _parse_tfrecord(example_proto):
@@ -25,8 +35,7 @@ def _parse_tfrecord(example_proto):
     return video, label
 
 # ==== Dataset Loader ====
-def load_dataset(file_pattern, batch_size, is_training=True):
-    file_list = tf.io.gfile.glob(file_pattern)
+def load_dataset(file_list, batch_size, is_training=True):
     dataset = tf.data.TFRecordDataset(file_list)
     dataset = dataset.map(_parse_tfrecord, num_parallel_calls=AUTO)
 
@@ -37,9 +46,11 @@ def load_dataset(file_pattern, batch_size, is_training=True):
     dataset = dataset.batch(batch_size).prefetch(AUTO)
     return dataset
 
-# Shortcuts for entry point
-def get_train_dataset():
-    return load_dataset(TRAIN_PATTERN, BATCH_SIZE, is_training=True)
+# ==== Main Loader Wrappers ====
+def get_train_dataset(folder=TFRECORD_DIR):
+    files = get_tfrecord_files(folder, split="train")
+    return load_dataset(files, BATCH_SIZE, is_training=True)
 
-def get_test_dataset():
-    return load_dataset(TEST_PATTERN, BATCH_SIZE, is_training=False)
+def get_test_dataset(folder=TFRECORD_DIR):
+    files = get_tfrecord_files(folder, split="test")
+    return load_dataset(files, BATCH_SIZE, is_training=False)
