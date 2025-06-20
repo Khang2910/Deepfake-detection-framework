@@ -5,7 +5,7 @@ from datetime import datetime
 import tensorflow as tf
 from models import MODEL_REGISTRY
 
-from main import get_train_dataset, get_test_dataset, NUM_EPOCHS
+from datapipeline import get_train_dataset, get_test_dataset, NUM_EPOCHS
 
 OUTPUT_EVAL_FILE = "evaluation.csv"
 
