@@ -1,22 +1,31 @@
 import argparse
 import time
 import os
+from datetime import datetime
 import tensorflow as tf
 from models import MODEL_REGISTRY
 
-from datapipeline import get_train_dataset, get_test_dataset, NUM_EPOCHS
+from main import get_train_dataset, get_test_dataset, NUM_EPOCHS
 
 OUTPUT_EVAL_FILE = "evaluation.csv"
+
+def log(msg, sep=False):
+    timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+    if sep:
+        print("=" * 60)
+    print(f"{timestamp} {msg}")
+    if sep:
+        print("=" * 60)
 
 def get_strategy():
     try:
         tpu = tf.distribute.cluster_resolver.TPUClusterResolver()
         tf.config.experimental_connect_to_cluster(tpu)
         tf.tpu.experimental.initialize_tpu_system(tpu)
-        print("Using TPU")
+        log("Using TPU")
         return tf.distribute.TPUStrategy(tpu), True
     except:
-        print("Using CPU/GPU")
+        log("Using CPU/GPU")
         return tf.distribute.MirroredStrategy(), False
 
 def reset_tpu():
@@ -24,9 +33,15 @@ def reset_tpu():
         resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
         tf.tpu.experimental.shutdown_tpu_system()
         tf.tpu.experimental.initialize_tpu_system(resolver)
-        print("TPU reset completed")
+        log("TPU reset completed")
     except Exception as e:
-        print(f"No TPU to reset or reset failed: {e}")
+        log(f"No TPU to reset or reset failed: {e}")
+
+def print_model_config(name, kwargs):
+    log(f"Initializing model: {name}")
+    for key, val in kwargs.items():
+        log(f"  {key}: {val}")
+    print()
 
 def train_model(model_name, use_tpu, model_kwargs):
     if model_name not in MODEL_REGISTRY:
@@ -34,37 +49,41 @@ def train_model(model_name, use_tpu, model_kwargs):
     
     if use_tpu:
         reset_tpu()
+
     strategy, _ = get_strategy()
 
     with strategy.scope():
         model_class = MODEL_REGISTRY[model_name]
+        print_model_config(model_name, model_kwargs)
         model = model_class(**model_kwargs)
         model.compile(optimizer='adam',
                       loss='sparse_categorical_crossentropy',
                       metrics=['accuracy'])
 
-    print(f"Loading dataset for {model_name}...")
+    log(f"Preparing dataset for {model_name}...", sep=True)
     train_dataset = get_train_dataset()
     val_dataset = get_test_dataset()
-    
-    print(f"Training model {model_name}...")
-    start = time.time()
-    model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=100)
-    elapsed = time.time() - start
 
-    print(f"Evaluating model {model_name}...")
+    log(f"Training model: {model_name}")
+    start_time = time.time()
+    history = model.fit(train_dataset, epochs=NUM_EPOCHS, steps_per_epoch=100)
+    elapsed = time.time() - start_time
+
+    log(f"Training completed in {elapsed:.2f} seconds")
+
+    log("Running evaluation...")
     results = model.evaluate(val_dataset, steps=10)
     acc = results[1]
+    log(f"Evaluation complete: accuracy = {acc:.4f}")
 
-    print(f"{model_name}: accuracy={acc:.4f}, time={elapsed:.2f}s")
-
+    log(f"Logging results to {OUTPUT_EVAL_FILE}")
     with open(OUTPUT_EVAL_FILE, "a") as f:
         f.write(f"{model_name}\t{acc:.4f}\t{elapsed:.2f}\n")
 
     tf.keras.backend.clear_session()
+    log(f"Finished training for model: {model_name}", sep=True)
 
 def parse_model_kwargs(args):
-    # Only include keys that aren't None
     return {k: v for k, v in {
         'num_classes': args.num_classes,
         'alpha': args.alpha,
@@ -73,12 +92,15 @@ def parse_model_kwargs(args):
 
 def main(args):
     os.makedirs(os.path.dirname(OUTPUT_EVAL_FILE) or ".", exist_ok=True)
-    _, is_tpu = get_strategy()  # for checking
+    _, is_tpu = get_strategy()  # just to check what's available
 
     model_kwargs = parse_model_kwargs(args)
 
     for model_name in args.models:
-        train_model(model_name, use_tpu=is_tpu, model_kwargs=model_kwargs)
+        try:
+            train_model(model_name, use_tpu=is_tpu, model_kwargs=model_kwargs)
+        except Exception as e:
+            log(f"Exception occurred during training model {model_name}: {e}", sep=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
