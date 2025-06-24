@@ -33,9 +33,11 @@ def _parse_tfrecord(example_proto):
     example = tf.io.parse_single_example(example_proto, feature_description)
 
     # Use correct field names
+    
     frames = tf.cast(example['num_frames'], tf.int32)
     width = tf.cast(example['width'], tf.int32)
     height = tf.cast(example['height'], tf.int32)
+    tf.print(frames, height, width)
 
     # Decode and reshape raw video
     video = tf.io.decode_raw(example['video'], tf.uint8)
