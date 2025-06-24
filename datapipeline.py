@@ -7,11 +7,12 @@ TARGET_WIDTH = 224
 BATCH_SIZE = 8
 AUTO = tf.data.AUTOTUNE
 
-TFRECORD_DIR = "gs://deepfake-detection"  # or "./data" for local
+# TFRECORD_DIR = "gs://deepfake-detection/metadata_parts"  # or "./data" for local
+TFRECORD_DIR = '../Deepfake-detection'
 
 
 def get_tfrecord_files(folder, split):
-    pattern = f"dfdc_*_{split}.tfrecord"
+    pattern = f"dfdc_*_{split}_meta.tfrecord"
     full_pattern = tf.io.gfile.join(folder, pattern)
     files = tf.io.gfile.glob(full_pattern)
     if not files:
