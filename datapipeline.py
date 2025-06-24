@@ -26,7 +26,7 @@ def _parse_tfrecord(example_proto):
     feature_description = {
         'video': tf.io.FixedLenFeature([], tf.string),
         'label': tf.io.FixedLenFeature([], tf.int64),
-        'frames': tf.io.FixedLenFeature([], tf.int64),
+        'num_frames': tf.io.FixedLenFeature([], tf.int64),
         'width': tf.io.FixedLenFeature([], tf.int64),
         'height': tf.io.FixedLenFeature([], tf.int64),
     }
