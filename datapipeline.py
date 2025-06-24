@@ -33,7 +33,7 @@ def _parse_tfrecord(example_proto):
     example = tf.io.parse_single_example(example_proto, feature_description)
 
     # Read shape info
-    frames = tf.cast(example['frames'], tf.int32)
+    frames = tf.cast(example['num_frames'], tf.int32)
     width = tf.cast(example['width'], tf.int32)
     height = tf.cast(example['height'], tf.int32)
 
