@@ -5,6 +5,7 @@ import os
 TARGET_HEIGHT = 224
 TARGET_WIDTH = 224
 BATCH_SIZE = 8
+NUM_EPOCHS = 10
 AUTO = tf.data.AUTOTUNE
 
 # TFRECORD_DIR = "gs://deepfake-detection/metadata_parts"  # or "./data" for local
