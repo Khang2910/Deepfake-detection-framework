@@ -70,7 +70,8 @@ def _parse_tfrecord(example_proto):
     # Decode and reshape raw video
     video_bytes = example["video"]
     video = decode_video_tf(video_bytes)
-
+    tf.print(video.shape)
+    
     expected_size = frames * height * width * 3
 
     # Assert correct reshape size to fail early with helpful message
