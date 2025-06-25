@@ -94,10 +94,10 @@ def main(args):
     print('=' * 60)
     print('TRAINING MODEL')
     for model_name in args.models:
-        try:
+        # try:
             train_model(model_name, use_tpu=True, model_kwargs=model_kwargs)
-        except Exception as e:
-            log(f"Exception occurred during training model {model_name}: {e}", sep=True)
+        # except Exception as e:
+            # log(f"Exception occurred during training model {model_name}: {e}", sep=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
