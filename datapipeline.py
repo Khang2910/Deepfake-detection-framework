@@ -1,4 +1,7 @@
 import tensorflow as tf
+import numpy as np
+import tempfile
+import cv2
 import os
 
 # ==== Config ====
@@ -21,6 +24,32 @@ def get_tfrecord_files(folder, split):
     print(f"[INFO] Found {len(files)} files for {split} in {folder}")
     return files
 
+def decode_video_py(video_bytes):
+
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+        tmp.write(video_bytes.numpy())
+        tmp.flush()
+
+        cap = cv2.VideoCapture(tmp.name)
+        frames = []
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frame = cv2.resize(frame, (224, 224))
+            frames.append(frame)
+        cap.release()
+        os.remove(tmp.name)
+
+    if len(frames) == 0:
+        raise ValueError("No frames extracted")
+
+    return np.stack(frames).astype(np.float32) / 255.0
+
+def decode_video_tf(video_bytes):
+    video = tf.py_function(decode_video_py, [video_bytes], tf.float32)
+    video.set_shape([None, 224, 224, 3])  # allow variable-length videos
+    return video
 
 def _parse_tfrecord(example_proto):
     feature_description = {
@@ -40,7 +69,9 @@ def _parse_tfrecord(example_proto):
     tf.print(frames, height, width)
 
     # Decode and reshape raw video
-    video = tf.io.decode_raw(example['video'], tf.uint8)
+    video_bytes = example["video"]
+    video = decode_video_tf(video_bytes)
+
     expected_size = frames * height * width * 3
     video = tf.ensure_shape(video, [None])  # keep shape dynamic, but enforce 1D
 
