@@ -66,7 +66,6 @@ def _parse_tfrecord(example_proto):
     frames = tf.cast(example['num_frames'], tf.int32)
     width = tf.cast(example['width'], tf.int32)
     height = tf.cast(example['height'], tf.int32)
-    tf.print(frames, height, width)
 
     # Decode and reshape raw video
     video_bytes = example["video"]
