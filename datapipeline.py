@@ -61,26 +61,9 @@ def _parse_tfrecord(example_proto):
     }
     example = tf.io.parse_single_example(example_proto, feature_description)
 
-    # Use correct field names
-    
-    frames = tf.cast(example['num_frames'], tf.int32)
-    width = tf.cast(example['width'], tf.int32)
-    height = tf.cast(example['height'], tf.int32)
-
     # Decode and reshape raw video
     video_bytes = example["video"]
     video = decode_video_tf(video_bytes)
-    tf.print(video.shape)
-    
-    expected_size = frames * height * width * 3
-
-    # Assert correct reshape size to fail early with helpful message
-    video = tf.reshape(video, [frames, height, width, 3])
-    video = tf.cast(video, tf.float32) / 255.0
-
-    # Resize all frames spatially to target shape
-    video = tf.image.resize(video, [TARGET_HEIGHT, TARGET_WIDTH])
-
     label = tf.cast(example['label'], tf.int32)
     return video, label
 
