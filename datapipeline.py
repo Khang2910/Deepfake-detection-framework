@@ -73,7 +73,7 @@ def load_dataset(file_list, batch_size, is_training=True):
     dataset = dataset.map(_parse_tfrecord, num_parallel_calls=AUTO)
 
     if is_training:
-        dataset = dataset.shuffle(128)
+        dataset = dataset.shuffle(16)
         dataset = dataset.repeat()
 
     dataset = dataset.batch(batch_size).prefetch(AUTO)
