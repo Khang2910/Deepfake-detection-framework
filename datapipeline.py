@@ -7,7 +7,7 @@ import os
 # ==== Config ====
 TARGET_HEIGHT = 224
 TARGET_WIDTH = 224
-BATCH_SIZE = 4
+BATCH_SIZE = 2
 NUM_EPOCHS = 10
 AUTO = tf.data.AUTOTUNE
 
