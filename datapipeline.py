@@ -73,7 +73,6 @@ def _parse_tfrecord(example_proto):
     video = decode_video_tf(video_bytes)
 
     expected_size = frames * height * width * 3
-    video = tf.ensure_shape(video, [None])  # keep shape dynamic, but enforce 1D
 
     # Assert correct reshape size to fail early with helpful message
     video = tf.reshape(video, [frames, height, width, 3])
