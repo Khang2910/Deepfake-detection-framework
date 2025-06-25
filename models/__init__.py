@@ -43,7 +43,16 @@ class SlowFast(tf.keras.Model):
         ])
 
     def call(self, inputs, training=False):
-        slow = inputs[:, ::self.alpha, :, :, :]
+        shape = tf.shape(inputs)
+        length = shape[1]
+        
+        # Generate indices: [0, 4, 8, ..., length)
+        indices = tf.range(0, length, delta=4)
+        
+        # Gather along time axis (axis=1)
+        slow = tf.gather(inputs, indices, axis=1)
+
+        # slow = inputs[:, ::self.alpha, :, :, :] Not compatible with TPU
         fast = inputs
         slow_feat = self.slow_conv(slow)
         fast_feat = self.fast_conv(fast)
