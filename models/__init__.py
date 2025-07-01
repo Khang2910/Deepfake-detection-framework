@@ -42,18 +42,34 @@ class SlowFast(tf.keras.Model):
             layers.Dense(num_classes, activation='softmax')
         ])
 
-    def call(self, inputs, training=False):
-        shape = tf.shape(inputs)
-        length = shape[1]
-        
-        # Generate indices: [0, 4, 8, ..., length)
-        indices = tf.range(0, length, delta=4)
-        
-        # Gather along time axis (axis=1)
-        slow = tf.gather(inputs, indices, axis=1)
+def call(self, inputs, training=False):
+    """
+    Args:
+        inputs: PaddedVideoBatch(content, pad_mask)
+            - content: tf.Tensor of shape [batch_size, max_length, H, W, C]
+            - pad_mask: tf.Tensor of shape [batch_size, max_length] (bool)
 
-        # slow = inputs[:, ::self.alpha, :, :, :] Not compatible with TPU
-        fast = inputs
-        slow_feat = self.slow_conv(slow)
-        fast_feat = self.fast_conv(fast)
-        return self.fc([slow_feat, fast_feat])
+    Returns:
+        tf.Tensor of shape [batch_size, num_classes]
+    """
+    video = inputs.content
+    pad_mask = inputs.pad_mask
+
+    batch_size = tf.shape(video)[0]
+    total_frames = tf.shape(video)[1]
+
+    # === Select slow path frames ===
+    slow_indices = tf.range(0, total_frames, delta=self.alpha)
+    slow = tf.gather(video, slow_indices, axis=1)
+    slow_mask = tf.gather(pad_mask, slow_indices, axis=1)
+
+    # === Apply convolutions ===
+    # Note: 3D Conv layers will inherently ignore padding since we padded with zeros,
+    # but pooling or averaging might be biased if we don’t apply the mask properly.
+    slow_feat = self.slow_conv(slow)
+    fast_feat = self.fast_conv(video)
+
+    # === Forward through final FC ===
+    out = self.fc([slow_feat, fast_feat])
+    return out
+
