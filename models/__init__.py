@@ -24,9 +24,7 @@ def masked_avg_pool(inputs, mask):
         Tensor of shape [B, ...] (aggregated over T)
     """
     mask = tf.cast(mask, dtype=inputs.dtype)  # [B, T]
-    mask = tf.expand_dims(mask, axis=-1)  # [B, T, 1]
-    while tf.rank(mask) < tf.rank(inputs):
-        mask = tf.expand_dims(mask, axis=-1)  # match dims
+    mask = mask[..., tf.newaxis, tf.newaxis, tf.newaxis]
 
     masked_inputs = inputs * mask  # [B, T, H, W, C]
     sum_feat = tf.reduce_sum(masked_inputs, axis=1)  # [B, H, W, C]
