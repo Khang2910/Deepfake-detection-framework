@@ -76,7 +76,7 @@ def load_dataset(file_list, batch_size, is_training=True):
         dataset = dataset.shuffle(4)
         dataset = dataset.repeat()
 
-    dataset = dataset.batch(batch_size).prefetch(AUTO)
+    dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(AUTO)
     return dataset
 
 
