@@ -4,6 +4,8 @@ import tempfile
 import cv2
 import os
 
+from transform import pad
+
 # ==== Config ====
 TARGET_HEIGHT = 224
 TARGET_WIDTH = 224
@@ -70,7 +72,7 @@ def _parse_tfrecord(example_proto):
 
 def load_dataset(file_list, batch_size, is_training=True):
     dataset = tf.data.TFRecordDataset(file_list)
-    dataset = dataset.map(_parse_tfrecord, num_parallel_calls=AUTO)
+    dataset = dataset.map(_parse_tfrecord, num_parallel_calls=AUTO).map(lambda video, label: (pad(video, MAX_FRAME), label), num_parallel_calls=AUTO)
 
     if is_training:
         dataset = dataset.shuffle(4)
