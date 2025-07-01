@@ -1,5 +1,8 @@
 import tensorflow as tf
 from tensorflow.keras import layers
+from collections import namedtuple
+
+PaddedVideoBatch = namedtuple("PaddedVideoBatch", ["content", "pad_mask"])
 
 MODEL_REGISTRY = {}
 
@@ -9,67 +12,81 @@ def register_model(name):
         return cls
     return wrapper
 
+def masked_avg_pool(inputs, mask):
+    """
+    Masked average over time axis (axis=1).
+
+    Args:
+        inputs: Tensor of shape [B, T, ...]
+        mask: Bool tensor of shape [B, T]
+
+    Returns:
+        Tensor of shape [B, ...] (aggregated over T)
+    """
+    mask = tf.cast(mask, dtype=inputs.dtype)  # [B, T]
+    mask = tf.expand_dims(mask, axis=-1)  # [B, T, 1]
+    while tf.rank(mask) < tf.rank(inputs):
+        mask = tf.expand_dims(mask, axis=-1)  # match dims
+
+    masked_inputs = inputs * mask  # [B, T, H, W, C]
+    sum_feat = tf.reduce_sum(masked_inputs, axis=1)  # [B, H, W, C]
+    valid_counts = tf.reduce_sum(mask, axis=1)  # [B, 1, 1, 1]
+
+    return sum_feat / (valid_counts + 1e-6)
+
 @register_model("slowfast")
 class SlowFast(tf.keras.Model):
-    def __init__(self, num_classes=2, alpha=4, tau=32, **kwargs):
+    def __init__(self, num_classes=2, alpha=4, **kwargs):
         """
-        SlowFast model for video classification.
+        Mask-aware SlowFast model for video classification.
         alpha: temporal stride ratio (e.g., 4)
-        tau: number of frames in fast path (e.g., 32)
         """
         super(SlowFast, self).__init__()
         self.alpha = alpha
-        self.tau = tau
 
+        # Slow Path
         self.slow_conv = tf.keras.Sequential([
             layers.Conv3D(32, (3, 3, 3), strides=(1, 2, 2), padding='same', activation='relu'),
-            layers.MaxPooling3D((1, 2, 2)),
+            layers.MaxPooling3D((1, 2, 2), padding='same'),
             layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu'),
-            layers.GlobalAveragePooling3D()
         ])
 
+        # Fast Path
         self.fast_conv = tf.keras.Sequential([
             layers.Conv3D(16, (3, 3, 3), strides=(1, 2, 2), padding='same', activation='relu'),
-            layers.MaxPooling3D((1, 2, 2)),
+            layers.MaxPooling3D((1, 2, 2), padding='same'),
             layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu'),
-            layers.GlobalAveragePooling3D()
         ])
 
+        # Fully Connected
         self.fc = tf.keras.Sequential([
-            layers.Concatenate(),
             layers.Dense(128, activation='relu'),
             layers.Dropout(0.5),
             layers.Dense(num_classes, activation='softmax')
         ])
 
-def call(self, inputs, training=False):
-    """
-    Args:
-        inputs: PaddedVideoBatch(content, pad_mask)
-            - content: tf.Tensor of shape [batch_size, max_length, H, W, C]
-            - pad_mask: tf.Tensor of shape [batch_size, max_length] (bool)
+    def call(self, inputs: PaddedVideoBatch, training=False):
+        video = inputs.content  # [B, T, H, W, C]
+        pad_mask = inputs.pad_mask  # [B, T]
 
-    Returns:
-        tf.Tensor of shape [batch_size, num_classes]
-    """
-    video = inputs.content
-    pad_mask = inputs.pad_mask
+        # Compute slow path (sample every alpha-th frame)
+        total_frames = tf.shape(video)[1]
+        slow_indices = tf.range(0, total_frames, delta=self.alpha)
+        slow_video = tf.gather(video, slow_indices, axis=1)
+        slow_mask = tf.gather(pad_mask, slow_indices, axis=1)
 
-    batch_size = tf.shape(video)[0]
-    total_frames = tf.shape(video)[1]
+        # Conv3D expects [B, T, H, W, C]
+        slow_feat = self.slow_conv(slow_video)  # [B, T', H, W, C]
+        fast_feat = self.fast_conv(video)
 
-    # === Select slow path frames ===
-    slow_indices = tf.range(0, total_frames, delta=self.alpha)
-    slow = tf.gather(video, slow_indices, axis=1)
-    slow_mask = tf.gather(pad_mask, slow_indices, axis=1)
+        # Masked average pooling over time
+        slow_pooled = masked_avg_pool(slow_feat, slow_mask)  # [B, H, W, C]
+        fast_pooled = masked_avg_pool(fast_feat, pad_mask)
 
-    # === Apply convolutions ===
-    # Note: 3D Conv layers will inherently ignore padding since we padded with zeros,
-    # but pooling or averaging might be biased if we don’t apply the mask properly.
-    slow_feat = self.slow_conv(slow)
-    fast_feat = self.fast_conv(video)
+        # Global spatial pooling
+        slow_global = tf.reduce_mean(slow_pooled, axis=[1, 2])  # [B, C]
+        fast_global = tf.reduce_mean(fast_pooled, axis=[1, 2])  # [B, C]
 
-    # === Forward through final FC ===
-    out = self.fc([slow_feat, fast_feat])
-    return out
-
+        # Final FC head
+        features = tf.concat([slow_global, fast_global], axis=-1)
+        return self.fc(features)
