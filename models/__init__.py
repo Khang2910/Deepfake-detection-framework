@@ -63,34 +63,34 @@ class SlowFast(tf.keras.Model):
             layers.Dense(num_classes, activation='softmax')
         ])
 
-def call(self, inputs: PaddedVideoBatch, training=False):
-    video = inputs.content  # [B, T, H, W, C]
-    pad_mask = inputs.pad_mask  # [B, T]
-
-    B = tf.shape(video)[0]
-    T = tf.shape(video)[1]
-
-    # === Create slow path mask: True for frames 0, alpha, 2*alpha, ...
-    slow_time_mask = tf.range(T) % self.alpha == 0  # [T]
-    slow_time_mask = tf.expand_dims(slow_time_mask, axis=0)  # [1, T]
-    slow_time_mask = tf.tile(slow_time_mask, [B, 1])  # [B, T]
-
-    # === Final mask for slow path
-    slow_mask = tf.logical_and(pad_mask, slow_time_mask)  # [B, T]
-
-    # === Conv paths
-    slow_feat = self.slow_conv(video)  # [B, T, H, W, C]
-    fast_feat = self.fast_conv(video)
-
-    # === Masked average pooling over time
-    slow_pooled = masked_avg_pool(slow_feat, slow_mask)  # [B, H, W, C]
-    fast_pooled = masked_avg_pool(fast_feat, pad_mask)
-
-    # === Global spatial pooling
-    slow_global = tf.reduce_mean(slow_pooled, axis=[1, 2])  # [B, C]
-    fast_global = tf.reduce_mean(fast_pooled, axis=[1, 2])  # [B, C]
-
-    # === Final classification
-    features = tf.concat([slow_global, fast_global], axis=-1)
-    return self.fc(features)
+    def call(self, inputs: PaddedVideoBatch, training=False):
+        video = inputs.content  # [B, T, H, W, C]
+        pad_mask = inputs.pad_mask  # [B, T]
+    
+        B = tf.shape(video)[0]
+        T = tf.shape(video)[1]
+    
+        # === Create slow path mask: True for frames 0, alpha, 2*alpha, ...
+        slow_time_mask = tf.range(T) % self.alpha == 0  # [T]
+        slow_time_mask = tf.expand_dims(slow_time_mask, axis=0)  # [1, T]
+        slow_time_mask = tf.tile(slow_time_mask, [B, 1])  # [B, T]
+    
+        # === Final mask for slow path
+        slow_mask = tf.logical_and(pad_mask, slow_time_mask)  # [B, T]
+    
+        # === Conv paths
+        slow_feat = self.slow_conv(video)  # [B, T, H, W, C]
+        fast_feat = self.fast_conv(video)
+    
+        # === Masked average pooling over time
+        slow_pooled = masked_avg_pool(slow_feat, slow_mask)  # [B, H, W, C]
+        fast_pooled = masked_avg_pool(fast_feat, pad_mask)
+    
+        # === Global spatial pooling
+        slow_global = tf.reduce_mean(slow_pooled, axis=[1, 2])  # [B, C]
+        fast_global = tf.reduce_mean(fast_pooled, axis=[1, 2])  # [B, C]
+    
+        # === Final classification
+        features = tf.concat([slow_global, fast_global], axis=-1)
+        return self.fc(features)
 
