@@ -11,7 +11,7 @@ TARGET_HEIGHT = 224
 TARGET_WIDTH = 224
 BATCH_SIZE = 2
 NUM_EPOCHS = 10
-MAX_FRAME = 1024
+MAX_FRAME = 128
 AUTO = tf.data.AUTOTUNE
 
 # TFRECORD_DIR = "gs://deepfake-detection/metadata_parts"  # or "./data" for local
