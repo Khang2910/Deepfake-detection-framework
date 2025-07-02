@@ -80,6 +80,7 @@ def load_dataset(file_list, batch_size, is_training=True):
         dataset = dataset.repeat()
 
     dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(AUTO)
+    print(f"Dataset shape is: {dataset.element_spec}")
     return dataset
 
 
