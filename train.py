@@ -52,8 +52,9 @@ def train_model(model_name, use_tpu, args, model_kwargs):
     with strategy.scope():
         model_class = MODEL_REGISTRY[model_name]
         print_model_config(model_name, model_kwargs)
-        model = model_class(**model_kwargs)
-        model(get_input())
+        core = model_class(**model_kwargs)
+        inp = get_input()
+        model = tf.keras.Model(inp, core(inp))
         assert model.built
         model.compile(optimizer='adam',
                       loss='sparse_categorical_crossentropy',
