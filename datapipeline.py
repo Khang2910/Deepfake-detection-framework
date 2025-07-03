@@ -85,7 +85,7 @@ def load_dataset(file_list, batch_size, is_training=True):
 
 def get_input():
     content = tf.random.uniform((BATCH_SIZE, MAX_FRAME, TARGET_HEIGHT, TARGET_WIDTH, 3), minval=0, maxval=1)
-    mask = tf.zeros((BATCH_SIZE, MAX_FRAME), dtype=tf.int32)
+    mask = tf.zeros((BATCH_SIZE, MAX_FRAME), dtype='bool')
     return PaddedVideo(content, mask)
 
 
