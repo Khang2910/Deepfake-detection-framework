@@ -5,7 +5,7 @@ from datetime import datetime
 import tensorflow as tf
 from models import MODEL_REGISTRY
 
-from datapipeline import get_train_dataset, get_test_dataset, NUM_EPOCHS
+from datapipeline import get_train_dataset, get_test_dataset, NUM_EPOCHS, get_input
 
 OUTPUT_EVAL_FILE = "evaluation.csv"
 
@@ -53,6 +53,8 @@ def train_model(model_name, use_tpu, args, model_kwargs):
         model_class = MODEL_REGISTRY[model_name]
         print_model_config(model_name, model_kwargs)
         model = model_class(**model_kwargs)
+        model(get_input())
+        assert model.built
         model.compile(optimizer='adam',
                       loss='sparse_categorical_crossentropy',
                       metrics=['accuracy'])
