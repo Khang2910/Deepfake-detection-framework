@@ -4,7 +4,7 @@ import tempfile
 import cv2
 import os
 
-from transform import pad
+from transform import pad, PaddedVideo
 
 # ==== Config ====
 TARGET_HEIGHT = 224
@@ -82,6 +82,11 @@ def load_dataset(file_list, batch_size, is_training=True):
     dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(AUTO)
     print(f"Dataset shape is: {dataset.element_spec}")
     return dataset
+
+def get_input():
+    content = tf.random.uniform((BATCH_SIZE, MAX_FRAME, TARGET_HEIGHT, TARGET_WIDTH, 3), minval=0, maxval=1)
+    mask = tf.zeros((BATCH_SIZE, MAX_FRAME), dtype=tf.int32)
+    return PaddedVideo(content, mask)
 
 
 def get_train_dataset(folder=TFRECORD_DIR):
