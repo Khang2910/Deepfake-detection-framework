@@ -84,8 +84,8 @@ def load_dataset(file_list, batch_size, is_training=True):
     return dataset
 
 def get_input():
-    content = tf.random.uniform((BATCH_SIZE, MAX_FRAME, TARGET_HEIGHT, TARGET_WIDTH, 3), minval=0, maxval=1)
-    mask = tf.zeros((BATCH_SIZE, MAX_FRAME), dtype='bool')
+    content = tf.keras.Input((MAX_FRAME, TARGET_HEIGHT, TARGET_WIDTH, 3), dtype=tf.float32)
+    mask = tf.keras.Input((MAX_FRAME,), dtype='bool')
     return PaddedVideo(content, mask)
 
 
