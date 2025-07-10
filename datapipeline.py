@@ -98,7 +98,7 @@ def get_train_dataset(folder=TFRECORD_DIR):
 def get_test_dataset(folder=TFRECORD_DIR):
     files = get_tfrecord_files(folder, split="test")
     return load_dataset(files, BATCH_SIZE, is_training=False)
-""""
+"""
 
 import tensorflow as tf
 import numpy as np
