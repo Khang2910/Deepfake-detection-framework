@@ -134,7 +134,7 @@ def get_parquet_files(folder, split):
 
 def decode_video_py(video_bytes):
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
-        tmp.write(video_bytes)
+        tmp.write(video_bytes.numpy())
         tmp.flush()
 
         cap = cv2.VideoCapture(tmp.name)
