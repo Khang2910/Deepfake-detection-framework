@@ -93,35 +93,41 @@ class SlowFast(tf.keras.Model):
         # === Final classification
         features = tf.concat([slow_global, fast_global], axis=-1)
         return self.fc(features)
+        
 
 @register_model("2plus1d")
 class TwoPlusOneD(tf.keras.Model):
-    def __init__(self, num_classes=2, **kwargs):
+    def __init__(self, num_classes=2, embed_dim=64, **kwargs):
         super().__init__()
 
-        def conv_2plus1d(in_channels, mid_channels):
-            return tf.keras.Sequential([
-                layers.Conv3D(mid_channels, (3, 1, 1), padding='same', activation='relu'),  # Temporal
-                layers.TimeDistributed(layers.Conv2D(mid_channels, (3, 3), padding='same', activation='relu'))  # Spatial
-            ])
-
-        self.path = tf.keras.Sequential([
-            conv_2plus1d(3, 32),
-            layers.MaxPooling3D((1, 2, 2), padding='same'),
-            conv_2plus1d(32, 64),
-            layers.MaxPooling3D((1, 2, 2), padding='same')
+        # Per-frame Conv2D backbone
+        self.spatial_encoder = tf.keras.Sequential([
+            layers.TimeDistributed(layers.Conv2D(32, 3, padding='same', activation='relu')),
+            layers.TimeDistributed(layers.MaxPooling2D(2)),
+            layers.TimeDistributed(layers.Conv2D(64, 3, padding='same', activation='relu')),
+            layers.TimeDistributed(layers.MaxPooling2D(2)),
         ])
 
+        # Temporal modeling via Conv1D
+        self.temporal_model = tf.keras.Sequential([
+            layers.Conv1D(embed_dim, kernel_size=3, padding='same', activation='relu'),
+            layers.GlobalAveragePooling1D()
+        ])
+
+        # Final classifier
         self.fc = tf.keras.Sequential([
-            layers.GlobalAveragePooling3D(),
             layers.Dense(128, activation='relu'),
             layers.Dropout(0.5),
             layers.Dense(num_classes, activation='softmax')
         ])
 
     def call(self, inputs: PaddedVideoBatch, training=False):
-        video = inputs.content  # [B, T, H, W, C]
-        x = self.path(video)
+        video = inputs.content   # [B, T, H, W, C]
+        pad_mask = inputs.pad_mask  # [B, T]
+
+        x = self.spatial_encoder(video)      # [B, T, H', W', C']
+        x = tf.reduce_mean(x, axis=[2, 3])   # [B, T, C'] - Global spatial pooling
+        x = self.temporal_model(x)           # [B, embed_dim]
         return self.fc(x)
 
 
