@@ -94,3 +94,65 @@ class SlowFast(tf.keras.Model):
         features = tf.concat([slow_global, fast_global], axis=-1)
         return self.fc(features)
 
+@register_model("2plus1d")
+class TwoPlusOneD(tf.keras.Model):
+    def __init__(self, num_classes=2, **kwargs):
+        super().__init__()
+
+        def conv_2plus1d(in_channels, mid_channels):
+            return tf.keras.Sequential([
+                layers.Conv3D(mid_channels, (3, 1, 1), padding='same', activation='relu'),  # Temporal
+                layers.TimeDistributed(layers.Conv2D(mid_channels, (3, 3), padding='same', activation='relu'))  # Spatial
+            ])
+
+        self.path = tf.keras.Sequential([
+            conv_2plus1d(3, 32),
+            layers.MaxPooling3D((1, 2, 2), padding='same'),
+            conv_2plus1d(32, 64),
+            layers.MaxPooling3D((1, 2, 2), padding='same')
+        ])
+
+        self.fc = tf.keras.Sequential([
+            layers.GlobalAveragePooling3D(),
+            layers.Dense(128, activation='relu'),
+            layers.Dropout(0.5),
+            layers.Dense(num_classes, activation='softmax')
+        ])
+
+    def call(self, inputs: PaddedVideoBatch, training=False):
+        video = inputs.content  # [B, T, H, W, C]
+        x = self.path(video)
+        return self.fc(x)
+
+
+@register_model("conv2d_attention")
+class Conv2DAttentionModel(tf.keras.Model):
+    def __init__(self, num_classes=2, num_heads=4, embed_dim=64, **kwargs):
+        super().__init__()
+
+        self.frame_encoder = tf.keras.Sequential([
+            layers.TimeDistributed(layers.Conv2D(32, 3, padding='same', activation='relu')),
+            layers.TimeDistributed(layers.MaxPooling2D(2)),
+            layers.TimeDistributed(layers.Conv2D(64, 3, padding='same', activation='relu')),
+            layers.TimeDistributed(layers.MaxPooling2D(2)),
+            layers.TimeDistributed(layers.Flatten()),
+            layers.TimeDistributed(layers.Dense(embed_dim))  # Frame-level feature embedding
+        ])
+
+        self.attn = layers.MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
+
+        self.fc = tf.keras.Sequential([
+            layers.LayerNormalization(),
+            layers.Dense(128, activation='relu'),
+            layers.Dropout(0.5),
+            layers.Dense(num_classes, activation='softmax')
+        ])
+
+    def call(self, inputs: PaddedVideoBatch, training=False):
+        video = inputs.content  # [B, T, H, W, C]
+        pad_mask = inputs.pad_mask  # [B, T]
+
+        x = self.frame_encoder(video)  # [B, T, embed_dim]
+        x = self.attn(x, x, attention_mask=pad_mask[:, tf.newaxis, tf.newaxis, :])  # [B, T, embed_dim]
+        x = tf.reduce_mean(x, axis=1)  # Global temporal average
+        return self.fc(x)
