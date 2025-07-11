@@ -102,9 +102,9 @@ class TwoPlusOneD(tf.keras.Model):
 
         # Per-frame Conv2D backbone
         self.spatial_encoder = tf.keras.Sequential([
-            layers.TimeDistributed(layers.Conv2D(32, 3, strides=2, padding='same', activation='relu')),
+            layers.TimeDistributed(layers.Conv2D(32, 3, strides=4, padding='same', activation='relu')),
             layers.TimeDistributed(layers.MaxPooling2D(2)),
-            layers.TimeDistributed(layers.Conv2D(64, 3, strides=2, padding='same', activation='relu')),
+            layers.TimeDistributed(layers.Conv2D(64, 3, strides=4, padding='same', activation='relu')),
             layers.TimeDistributed(layers.MaxPooling2D(2)),
         ])
 
